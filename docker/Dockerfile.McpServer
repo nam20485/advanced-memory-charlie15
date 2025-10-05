@@ -1,0 +1,26 @@
+# Multi-stage Dockerfile for MCP Server
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+COPY ["src/AdvancedMemory.MCP.Server/AdvancedMemory.MCP.Server.csproj", "AdvancedMemory.MCP.Server/"]
+COPY ["src/AdvancedMemory.KnowledgeProvider/AdvancedMemory.KnowledgeProvider.csproj", "AdvancedMemory.KnowledgeProvider/"]
+COPY ["src/AdvancedMemory.MemoryProvider/AdvancedMemory.MemoryProvider.csproj", "AdvancedMemory.MemoryProvider/"]
+COPY ["src/AdvancedMemory.GroundingProvider/AdvancedMemory.GroundingProvider.csproj", "AdvancedMemory.GroundingProvider/"]
+COPY ["src/AdvancedMemory.Orchestration/AdvancedMemory.Orchestration.csproj", "AdvancedMemory.Orchestration/"]
+COPY ["src/AdvancedMemory.Shared/AdvancedMemory.Shared.csproj", "AdvancedMemory.Shared/"]
+RUN dotnet restore "AdvancedMemory.MCP.Server/AdvancedMemory.MCP.Server.csproj"
+COPY src/ .
+WORKDIR "/src/AdvancedMemory.MCP.Server"
+RUN dotnet build "AdvancedMemory.MCP.Server.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "AdvancedMemory.MCP.Server.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "AdvancedMemory.MCP.Server.dll"]

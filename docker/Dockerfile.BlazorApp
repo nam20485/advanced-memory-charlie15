@@ -1,0 +1,21 @@
+# Multi-stage Dockerfile for Blazor WebAssembly
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+WORKDIR /app
+EXPOSE 5000
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+COPY ["src/AdvancedMemory.UI/AdvancedMemory.UI.csproj", "AdvancedMemory.UI/"]
+COPY ["src/AdvancedMemory.Shared/AdvancedMemory.Shared.csproj", "AdvancedMemory.Shared/"]
+RUN dotnet restore "AdvancedMemory.UI/AdvancedMemory.UI.csproj"
+COPY src/ .
+WORKDIR "/src/AdvancedMemory.UI"
+RUN dotnet build "AdvancedMemory.UI.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "AdvancedMemory.UI.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM nginx:alpine AS final
+COPY --from=publish /app/publish/wwwroot /usr/share/nginx/html
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+EXPOSE 5000
